@@ -12,7 +12,7 @@ make px4_sitl gazebo
 ```
 After the successfull build close 
 ### Install px4_autonomous
-:warning: This step requires a fully set up ROS2 Humble worspace.
+:warning: This step requires a fully set up ROS2 Humble workspace.
 
 Clone this repository into your ROS2 workspace:
 ```
