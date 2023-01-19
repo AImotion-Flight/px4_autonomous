@@ -10,7 +10,7 @@ Build SITL Gazebo:
 cd ~/PX4-Autopilot
 make px4_sitl gazebo
 ```
-After the successfull build close 
+After the successful build close Gazebo and PX4.
 ### Install px4_autonomous
 :warning: This step requires a fully set up ROS2 Humble workspace.
 
