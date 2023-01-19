@@ -35,7 +35,7 @@ public:
       this->create_publisher<px4_msgs::msg::OffboardControlMode>(this->offboard_control_mode_topic, qos_pub);
 
     this->trajectory_setpoint_pub =
-      this->create_publisher<px4_msgs::msg::TrajectorySetpoint>(this->trajectory_setpoint_topic, qos_pubb);
+      this->create_publisher<px4_msgs::msg::TrajectorySetpoint>(this->trajectory_setpoint_topic, qos_pub);
 
     this->vehicle_status_sub =
       this->create_subscription<px4_msgs::msg::VehicleStatus>(this->vehicle_status_topic,
@@ -45,9 +45,52 @@ public:
 								this->mode = msg->nav_state;
 							      });
 
+    this->execute_path_action_server =
+      rclcpp_action::create_server<px4_autonomous_interfaces::action::ExecutePath>(this,
+										   "execute_path",
+										   [this](const rclcpp_action::GoalUUID& uuid, std::shared_ptr<const px4_autonomous_interfaces::action::ExecutePath::Goal> goal) {
+										     RCLCPP_INFO(this->get_logger(), "Received a path to execute");
+										     (void)uuid;
+										     (void)goal;
+										     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+										   },
+										   [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<px4_autonomous_interfaces::action::ExecutePath>> goal_handle) {
+										     RCLCPP_INFO(this->get_logger(), "Received a request to cancel path execution");
+										     (void)goal_handle;
+										     return rclcpp_action::CancelResponse::ACCEPT;
+										   },
+										   [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<px4_autonomous_interfaces::action::ExecutePath>> goal_handle) {
+										     std::thread{[this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<px4_autonomous_interfaces::action::ExecutePath>> goal_handle) {
+										       RCLCPP_INFO(this->get_logger(), "Executing path ...");
+
+										       const auto goal = goal_handle->get_goal();
+										       auto feedback = std::make_shared<px4_autonomous_interfaces::action::ExecutePath::Feedback>();
+										       auto result = std::make_shared<px4_autonomous_interfaces::action::ExecutePath::Result>();
+
+										       rclcpp::Rate loop_rate(1);
+										       unsigned int size = goal->path.poses.size();
+										       for (unsigned int i = 0; i < size && rclcpp::ok(); ++i) {
+											 this->setpoint = goal->path.poses[i].pose;
+
+											 feedback->progress = i / size;
+											 goal_handle->publish_feedback(feedback);
+											 
+											 loop_rate.sleep();
+										       }
+
+										       if (rclcpp::ok()) {
+											 result->final_reached = true;
+											 goal_handle->succeed(result);
+											 RCLCPP_INFO(this->get_logger(), "Path executed");
+										       }
+										       
+										     }, goal_handle}.detach();
+										   });
+
     this->setpoint_timer = this->create_wall_timer(100ms, [this]() {
       px4_msgs::msg::OffboardControlMode control_mode;
-      control_mode.timestamp = int(this->get_clock()->now().nanoseconds() / 1000);
+      control_mode.timestamp =
+          int(this->get_clock()->now().nanoseconds() / 1000);
       control_mode.position = true;
       control_mode.velocity = false;
       control_mode.acceleration = false;
@@ -55,11 +98,12 @@ public:
       control_mode.body_rate = false;
       this->offboard_control_mode_pub->publish(control_mode);
 
-      px4_msgs::msg::TrajectorySetpoint setpoint;
-      setpoint.timestamp = int(this->get_clock()->now().nanoseconds() / 1000);
-      setpoint.position = {2.0f * std::cos(this->theta),
-			   2.0f * std::sin(this->theta), -5.0};
-      this->trajectory_setpoint_pub->publish(setpoint);
+      px4_msgs::msg::TrajectorySetpoint sp;
+      sp.timestamp = int(this->get_clock()->now().nanoseconds() / 1000);
+      sp.position = {this->setpoint.position.x, this->setpoint.position.y, -this->setpoint.position.z};
+	/*{2.0f * std::cos(this->theta),
+			    2.0f * std::sin(this->theta), -5.0};*/
+      this->trajectory_setpoint_pub->publish(sp);
 
       this->theta = this->theta + (M_PI / 50);
       if (this->theta > 2 * M_PI)
@@ -71,6 +115,7 @@ private:
   float theta;
   uint8_t armed;
   uint8_t mode;
+  geometry_msgs::msg::Pose setpoint;
   std::string uav_name;
   std::string vehicle_status_topic;
   std::string offboard_control_mode_topic;
