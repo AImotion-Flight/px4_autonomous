@@ -16,7 +16,7 @@ make px4_sitl gazebo
 Clone this repository into your ROS2 workspace:
 ```
 cd ~/ros2_ws
-git clone https://github.com/AImotion-Flight/px4_autonomous.git
+git clone https://github.com/AImotion-Flight/px4_autonomous.git --recursive
 colcon build
 source install/setup.bash
 ```
