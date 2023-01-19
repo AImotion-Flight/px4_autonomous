@@ -23,6 +23,6 @@ source install/setup.bash
 ### Launching the SITL simulation
 Finally the simulation can be started with:
 ```
-source ~/PX4-Autopilot/Tools/simulation/gazebo-classic ~/PX4-Autopilot ~/PX4-Autopilot/build/px4_sitl_default
+source ~/PX4-Autopilot/Tools/simulation/gazebo-classic/setup_gazebo.bash ~/PX4-Autopilot ~/PX4-Autopilot/build/px4_sitl_default
 ros2 launch px4_autonomous px4_autonomous_sitl_launch.py
 ```
