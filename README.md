@@ -12,7 +12,7 @@ make px4_sitl gazebo
 ```
 After the successfull build close 
 ### Install px4_autonomous
-:warning: This step requires a working [ROS2 Humble](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html) installation.
+:warning: This step requires a fully set up ROS2 Humble worspace.
 
 Clone this repository into your ROS2 workspace:
 ```
