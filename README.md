@@ -3,7 +3,7 @@
 ### Install PX4 SITL Gazebo Environment
 Clone the PX4 Autopilot:
 ```
-git clone https://github.com/PX4/PX4-Autopilot.git --recursive ~/
+git clone https://github.com/PX4/PX4-Autopilot.git --recursive ~/PX4-Autopilot
 ```
 Build SITL Gazebo:
 ```
@@ -16,8 +16,8 @@ After the successful build close Gazebo and PX4.
 
 Clone this repository into your ROS2 workspace:
 ```
-cd ~/ros2_ws/src
-git clone git@github.com:AImotion-Flight/px4_autonomous.git --recursive .
+cd ~/ros2_ws/
+git clone git@github.com:AImotion-Flight/px4_autonomous.git --recursive src/
 colcon build
 source install/setup.bash
 ```
