@@ -6,14 +6,14 @@ from launch_ros.actions import Node
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 def generate_launch_description():
-    vehicle_model = 'iris'
+    vehicle_model = 'x500'
     
     px4 = ExecuteProcess(
         cmd=[
             os.path.expanduser('~/PX4-Autopilot/build/px4_sitl_default/bin/px4'),
             os.path.expanduser('~/PX4-Autopilot/build/px4_sitl_default/etc')
         ],
-        additional_env={'PX4_SIM_MODEL': 'gazebo-classic_' + vehicle_model},
+        additional_env={'PX4_SIM_MODEL': 'gz_' + vehicle_model},
         output='screen'
     )
 
@@ -24,30 +24,6 @@ def generate_launch_description():
             '--port',
             '8888'
         ]
-    )
-    
-    gzserver = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(get_package_share_directory('gazebo_ros'), 'launch/gzserver.launch.py')
-        ),
-        launch_arguments={
-            'verbose': 'true'
-        }.items()
-    )
-
-    gzclient = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(get_package_share_directory('gazebo_ros'), 'launch/gzclient.launch.py')
-        ),
-        launch_arguments={
-            'verbose': 'true'
-        }.items()
-    )
-
-    load_vehicle = Node(
-        package='gazebo_ros',
-        executable='spawn_entity.py',
-        arguments=['-entity', 'uav', '-database', vehicle_model]
     )
 
     px4autonomous = IncludeLaunchDescription(
@@ -60,9 +36,6 @@ def generate_launch_description():
         [
             px4,
             micrortps,
-            gzserver,
-            gzclient,
-            load_vehicle,
             px4autonomous,
         ]
     )
