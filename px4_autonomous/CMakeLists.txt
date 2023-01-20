@@ -41,7 +41,7 @@ ament_target_dependencies(visualization rclcpp px4_msgs geometry_msgs nav_msgs t
 install(TARGETS offboard transformation visualization
   DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY launch config
+install(DIRECTORY launch config worlds models
   DESTINATION share/${PROJECT_NAME}/
 )
 

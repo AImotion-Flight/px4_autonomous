@@ -67,7 +67,7 @@ public:
 										       auto feedback = std::make_shared<px4_autonomous_interfaces::action::ExecutePath::Feedback>();
 										       auto result = std::make_shared<px4_autonomous_interfaces::action::ExecutePath::Result>();
 
-										       rclcpp::Rate loop_rate(2);
+										       rclcpp::Rate loop_rate(1);
 										       unsigned int size = goal->path.poses.size();
 										       for (unsigned int i = 0; i < size && rclcpp::ok(); ++i) {
 											 this->setpoint = goal->path.poses[i].pose;
@@ -87,7 +87,7 @@ public:
 										     }, goal_handle}.detach();
 										   });
 
-    this->setpoint.position.z = 5.0;
+    this->setpoint.position.z = 2.5;
 
     this->setpoint_timer = this->create_wall_timer(10ms, [this]() {
       px4_msgs::msg::OffboardControlMode control_mode;
