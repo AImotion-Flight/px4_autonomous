@@ -2,6 +2,8 @@
 #include <cmath>
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
+#include "tf2/utils.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "px4_msgs/msg/offboard_control_mode.hpp"
 #include "px4_msgs/msg/vehicle_status.hpp"
 #include "px4_msgs/msg/trajectory_setpoint.hpp"
@@ -11,7 +13,7 @@ using namespace std::chrono_literals;
 
 class Offboard : public rclcpp::Node {
 public:
-  Offboard() : Node("offboard"), theta(0), armed(0) {
+  Offboard() : Node("offboard"), theta(0), armed(0), setpoint_yaw(0) {
     this->vehicle_status_topic =
       this->declare_parameter("vehicle_status_topic", "/fmu/out/vehicle_status");
     this->offboard_control_mode_topic =
@@ -70,7 +72,11 @@ public:
 										       rclcpp::Rate loop_rate(1);
 										       unsigned int size = goal->path.poses.size();
 										       for (unsigned int i = 0; i < size && rclcpp::ok(); ++i) {
+											 auto pose = goal->path.poses[i].pose;
 											 this->setpoint = goal->path.poses[i].pose;
+											 tf2::Transform tf;
+											 tf2::fromMsg(pose, tf);
+											 this->setpoint_yaw = tf2::getYaw(tf.getRotation());
 
 											 feedback->progress = i / size;
 											 goal_handle->publish_feedback(feedback);
@@ -105,6 +111,7 @@ public:
       sp.position = {this->setpoint.position.y + 0.5f, this->setpoint.position.x + 0.5f, -this->setpoint.position.z};
 	/*{2.0f * std::cos(this->theta),
 			    2.0f * std::sin(this->theta), -5.0};*/
+      sp.yaw = this->setpoint_yaw;//M_PI / 2.0;
       this->trajectory_setpoint_pub->publish(sp);
 
       this->theta = this->theta + (M_PI / 50);
@@ -118,6 +125,7 @@ private:
   uint8_t armed;
   uint8_t mode;
   geometry_msgs::msg::Pose setpoint;
+  double setpoint_yaw;
   std::string uav_name;
   std::string vehicle_status_topic;
   std::string offboard_control_mode_topic;

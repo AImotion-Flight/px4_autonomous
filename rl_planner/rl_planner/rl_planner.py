@@ -1,15 +1,17 @@
 import os
+import math
 from ament_index_python.packages import get_package_share_directory
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Quaternion
 from nav_msgs.msg import Path
 from px4_autonomous_interfaces.action import ExecutePath
 from .qlearning import EnsembleQLearning
 from .util import *
 from .environment import GridEnvironment
 from .agent import DynamicalSystem
+from transforms3d.euler import euler2quat
 
 class RLPlanner(Node):
     def __init__(self):
@@ -45,13 +47,16 @@ class RLPlanner(Node):
     def get_path(self):
         policy = self.qlearning.get_policy()
 
-        print(policy)
+        quaternion = euler2quat(0, 0, math.pi / 2)
+        orientation = Quaternion(w=quaternion[0], x=quaternion[1], y=quaternion[2], z=quaternion[3])
+        
         poses = []
         for s in policy[0]:
             pose = PoseStamped()
             pose.pose.position.x = float(s[0])
             pose.pose.position.y = float(s[1])
             pose.pose.position.z = self.altitude
+            pose.pose.orientation = orientation
             poses.append(pose)
         
         return Path(poses=poses)

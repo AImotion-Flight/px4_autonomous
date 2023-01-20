@@ -13,7 +13,9 @@ find_package(rclcpp REQUIRED)
 find_package(px4_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(px4_autonomous_interfaces REQUIRED)
 find_package(rclcpp_action REQUIRED)
 
@@ -22,7 +24,7 @@ target_include_directories(offboard PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_compile_features(offboard PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-ament_target_dependencies(offboard rclcpp px4_msgs px4_autonomous_interfaces rclcpp_action)
+ament_target_dependencies(offboard rclcpp px4_msgs px4_autonomous_interfaces rclcpp_action tf2_geometry_msgs tf2)
 
 add_executable(transformation src/transformation.cpp)
 target_include_directories(transformation PUBLIC
