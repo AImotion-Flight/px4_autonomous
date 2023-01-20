@@ -19,9 +19,9 @@ source install/setup.bash
 Build SITL Gazebo Classic:
 ```
 cd ~/PX4-Autopilot
-make px4_sitl gazebo
+DONT_RUN=1 make px4_sitl gazebo
 ```
-After the successful build close Gazebo and PX4. Start the simulation with:
+Start the simulation with:
 ```
 ros2 launch px4_autonomous px4_autonomous_sitl_classic_launch.py
 ```
