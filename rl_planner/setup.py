@@ -10,6 +10,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/rl_planner/models', ['models/final_Q.npy'])
     ],
     install_requires=['setuptools'],
     zip_safe=True,

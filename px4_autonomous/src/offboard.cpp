@@ -67,7 +67,7 @@ public:
 										       auto feedback = std::make_shared<px4_autonomous_interfaces::action::ExecutePath::Feedback>();
 										       auto result = std::make_shared<px4_autonomous_interfaces::action::ExecutePath::Result>();
 
-										       rclcpp::Rate loop_rate(1);
+										       rclcpp::Rate loop_rate(2);
 										       unsigned int size = goal->path.poses.size();
 										       for (unsigned int i = 0; i < size && rclcpp::ok(); ++i) {
 											 this->setpoint = goal->path.poses[i].pose;
@@ -87,7 +87,9 @@ public:
 										     }, goal_handle}.detach();
 										   });
 
-    this->setpoint_timer = this->create_wall_timer(100ms, [this]() {
+    this->setpoint.position.z = 5.0;
+
+    this->setpoint_timer = this->create_wall_timer(10ms, [this]() {
       px4_msgs::msg::OffboardControlMode control_mode;
       control_mode.timestamp =
           int(this->get_clock()->now().nanoseconds() / 1000);
@@ -100,7 +102,7 @@ public:
 
       px4_msgs::msg::TrajectorySetpoint sp;
       sp.timestamp = int(this->get_clock()->now().nanoseconds() / 1000);
-      sp.position = {this->setpoint.position.x, this->setpoint.position.y, -this->setpoint.position.z};
+      sp.position = {this->setpoint.position.y + 0.5f, this->setpoint.position.x + 0.5f, -this->setpoint.position.z};
 	/*{2.0f * std::cos(this->theta),
 			    2.0f * std::sin(this->theta), -5.0};*/
       this->trajectory_setpoint_pub->publish(sp);
