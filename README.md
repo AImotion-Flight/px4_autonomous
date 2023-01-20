@@ -1,6 +1,6 @@
 # PX4 + ROS2 Autonomous UAV
 ## Run the SITL simulation
-### Install PX4 SITL Gazebo Environment
+### Get the PX4 Source Code
 Clone the PX4 Autopilot:
 ```
 git clone https://github.com/PX4/PX4-Autopilot.git --recursive ~/PX4-Autopilot
