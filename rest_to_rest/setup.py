@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'rl_planner'
+package_name = 'rest_to_rest'
 
 setup(
     name=package_name,
@@ -10,18 +10,18 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/rl_planner/models', ['models/final_Q.npy'])
+        ('share/' + package_name + '/models', ['models/Q.npy'])
     ],
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='bencic',
     maintainer_email='daniel.bencic@thi.de',
-    description='TODO: Package description',
+    description='Rest to Rest Trajectory Generation with Q Learning',
     license='MIT',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'rl_planner = rl_planner.rl_planner:main'
+            'rest_to_rest = rest_to_rest.rest_to_rest:main'
         ],
     },
 )

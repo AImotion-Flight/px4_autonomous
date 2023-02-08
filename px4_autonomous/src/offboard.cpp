@@ -8,12 +8,13 @@
 #include "px4_msgs/msg/vehicle_status.hpp"
 #include "px4_msgs/msg/trajectory_setpoint.hpp"
 #include "px4_autonomous_interfaces/action/execute_path.hpp"
+#include "px4_autonomous_interfaces/msg/trajectory.hpp"
 
 using namespace std::chrono_literals;
 
 class Offboard : public rclcpp::Node {
 public:
-  Offboard() : Node("offboard"), theta(0), armed(0), setpoint_yaw(0) {
+  Offboard() : Node("offboard"), armed(0) {
     this->vehicle_status_topic =
       this->declare_parameter("vehicle_status_topic", "/fmu/out/vehicle_status");
     this->offboard_control_mode_topic =
@@ -70,14 +71,10 @@ public:
 										       auto result = std::make_shared<px4_autonomous_interfaces::action::ExecutePath::Result>();
 
 										       rclcpp::Rate loop_rate(1);
-										       unsigned int size = goal->path.poses.size();
+										       unsigned int size = goal->trajectory.setpoints.size();
 										       for (unsigned int i = 0; i < size && rclcpp::ok(); ++i) {
-											 auto pose = goal->path.poses[i].pose;
-											 this->setpoint = goal->path.poses[i].pose;
-											 tf2::Transform tf;
-											 tf2::fromMsg(pose, tf);
-											 this->setpoint_yaw = tf2::getYaw(tf.getRotation());
-
+											 this->setpoint = goal->trajectory.setpoints[i];
+											 
 											 feedback->progress = i / size;
 											 goal_handle->publish_feedback(feedback);
 											 
@@ -93,39 +90,35 @@ public:
 										     }, goal_handle}.detach();
 										   });
 
-    this->setpoint.position.z = 2.5;
+    this->setpoint.position[2] = 2.5;
 
     this->setpoint_timer = this->create_wall_timer(10ms, [this]() {
+      int timestamp = int(this->get_clock()->now().nanoseconds() / 1000);
+      
       px4_msgs::msg::OffboardControlMode control_mode;
-      control_mode.timestamp =
-          int(this->get_clock()->now().nanoseconds() / 1000);
+      control_mode.timestamp = timestamp;
       control_mode.position = true;
       control_mode.velocity = false;
-      control_mode.acceleration = false;
+      control_mode.acceleration = true;
       control_mode.attitude = false;
       control_mode.body_rate = false;
-      this->offboard_control_mode_pub->publish(control_mode);
-
+      
       px4_msgs::msg::TrajectorySetpoint sp;
-      sp.timestamp = int(this->get_clock()->now().nanoseconds() / 1000);
-      sp.position = {this->setpoint.position.y + 0.5f, this->setpoint.position.x + 0.5f, -this->setpoint.position.z};
-	/*{2.0f * std::cos(this->theta),
-			    2.0f * std::sin(this->theta), -5.0};*/
-      sp.yaw = this->setpoint_yaw;//M_PI / 2.0;
-      this->trajectory_setpoint_pub->publish(sp);
+      sp.timestamp = timestamp;
+      sp.position = {this->setpoint.position[1] + 0.5f, this->setpoint.position[0] + 0.5f, -this->setpoint.position[2]};
+      sp.velocity = {this->setpoint.velocity[1], this->setpoint.velocity[0], -this->setpoint.velocity[2]};
+      sp.acceleration = {this->setpoint.acceleration[1], this->setpoint.acceleration[0], -this->setpoint.acceleration[2]};
+      sp.yaw = this->setpoint.yaw;
 
-      this->theta = this->theta + (M_PI / 50);
-      if (this->theta > 2 * M_PI)
-        this->theta = 0;
-    });
+      this->offboard_control_mode_pub->publish(control_mode);
+      this->trajectory_setpoint_pub->publish(sp);
+      });
   }
 
 private:
-  float theta;
   uint8_t armed;
   uint8_t mode;
-  geometry_msgs::msg::Pose setpoint;
-  double setpoint_yaw;
+  px4_msgs::msg::TrajectorySetpoint setpoint;
   std::string uav_name;
   std::string vehicle_status_topic;
   std::string offboard_control_mode_topic;

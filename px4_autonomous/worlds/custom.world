@@ -51,22 +51,17 @@
     </include>
     <include>
       <name>obstacle8</name>
-      <pose>12.5 3.5 2.5 0.0 0.0 0.0</pose>
+      <pose>11.5 3.5 2.5 0.0 0.0 0.0</pose>
       <uri>model://pillar</uri>
     </include>
     <include>
       <name>obstacle9</name>
-      <pose>12.5 2.5 2.5 0.0 0.0 0.0</pose>
+      <pose>11.5 2.5 2.5 0.0 0.0 0.0</pose>
       <uri>model://pillar</uri>
     </include>
     <include>
       <name>obstacle10</name>
       <pose>0.5 7.5 2.5 0.0 0.0 0.0</pose>
-      <uri>model://pillar</uri>
-    </include>
-    <include>
-      <name>obstacle11</name>
-      <pose>11.5 2.5 2.5 0.0 0.0 0.0</pose>
       <uri>model://pillar</uri>
     </include>
     <include>

@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>rl_planner</name>
+  <name>rest_to_rest</name>
   <version>0.0.0</version>
-  <description>Path Planning with Reinforcement Learning</description>
+  <description>Rest to Rest Trajectory Generation with Q Learning</description>
   <maintainer email="daniel.bencic@thi.de">Daniel Bencic</maintainer>
   <license>MIT</license>
 

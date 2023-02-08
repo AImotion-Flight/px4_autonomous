@@ -1,3 +1,4 @@
 .ccls-cache/
 __pycache__/
 compile_commands.json
+.vscode/

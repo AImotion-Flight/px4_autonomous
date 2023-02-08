@@ -3,14 +3,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class EnsembleQLearning():
-    def __init__(self, n, init_state, final_state, agent, env, ep, gamma, plot=False):
+    def __init__(self, n, init_state, final_state, agent, env, ep, alpha, gamma, eps, plot=False):
         self.n = n
         self.init_state = init_state
         self.final_state = final_state
         self.agent = agent
         self.env = env
         self.ep = ep
+        self.alpha = alpha
         self.gamma = gamma
+        self.eps = eps
         self.plot = plot
 
         self.visit = np.ones((self.agent.get_state_count(), 1))
@@ -64,11 +66,11 @@ class EnsembleQLearning():
         self.agent.set_state(self.init_state)
     
     def epsilon_greedy_policy(self, state):
-        if np.random.uniform() < 0.15:#1 / math.sqrt(self.visit[self.agent.find_state_index(state)]):
+        if np.random.uniform() < self.eps:
             return self.agent.get_random_action()
         else:
             row = self.agent.find_state_index(state)
-            argmaxQ = np.argmax(np.sum(self.Qs, axis=0)[row])
+            argmaxQ = np.argmax((np.sum(self.Qs, axis=0) / len(self.Qs))[row])
             return self.agent.get_action_by_index(argmaxQ)
 
     def convergence(self):
@@ -76,13 +78,13 @@ class EnsembleQLearning():
 
     def compute_reward(self, state, next_state):
         if not self.env.is_valid(next_state):
-            return -1
+            return -10
         elif self.env.is_obstacle(next_state):
-            return -1
+            return -10
         elif self.is_final(next_state):
-            return 1
+            return 10
         elif state == next_state:
-            return -1
+            return -2
         else:
             return 0
         
@@ -98,8 +100,7 @@ class EnsembleQLearning():
             row_next = self.agent.find_state_index(next_state)
             maxQ = self.Qs[pQ][row_next, np.argmax(self.Qs[pmaxQ][row_next])]
 
-        alpha = 1 if self.visit[row] < 2 else 1 / math.log2(self.visit[row])
-        self.Qs[pQ][row, col] = self.Qs[pQ][row, col] + alpha * (r + self.gamma * maxQ - self.Qs[pQ][row, col])
+        self.Qs[pQ][row, col] = self.Qs[pQ][row, col] + self.alpha * (r + self.gamma * maxQ - self.Qs[pQ][row, col])
 
     def run_episode(self):
         self.reset_agent()
@@ -110,15 +111,15 @@ class EnsembleQLearning():
         state = self.agent.get_state()
             
         while not self.is_terminal(state):
+            self.visit[self.agent.find_state_index(state)] += 1
             action = self.epsilon_greedy_policy(state)
             next_state, c = self.agent.transition_state(action)
             
             path.append(state)
             aseq.append(action)
             
-            r = self.compute_reward(state, next_state) - (c + 1)/1000
+            r = self.compute_reward(state, next_state) - c/10
             self.update_Q(state, next_state, action, r)
-            self.visit[self.agent.find_state_index(state)] += 1
 
             state = next_state
 
@@ -132,6 +133,7 @@ class EnsembleQLearning():
 
         convg = []
         rew = []
+        best = -10e99
         try:
             for i in range(self.ep):
                 path, terminal_state, _, er = self.run_episode()
@@ -139,9 +141,11 @@ class EnsembleQLearning():
                 convg.append(self.convergence()[self.agent.find_state_index(self.init_state)])
                 rew.append(er)
 
+                best = er if  er > best else best
+
                 if self.is_final(terminal_state):
                     path.append(terminal_state)
-                    #print("Goal reached!")
+                    #print("Goal reached! Reward: " + str(er - 10) + " Best Reward: " + str(best - 10))
 
                 if self.plot:
                     self.plot_learning(np.array(path))
@@ -175,12 +179,14 @@ class EnsembleQLearning():
         return np.array(path), np.array(aseq)
 
 class QLearning(EnsembleQLearning):
-    def __init__(self, init_state, final_state, agent, env, ep, gamma, plot=False):
-            super().__init__(1, init_state, final_state, agent, env, ep, gamma, plot)
+    def __init__(self, init_state, final_state, agent, env, ep, alpha, gamma, eps, plot=False):
+            super().__init__(1, init_state, final_state, agent, env, ep, alpha, gamma, eps, plot)
     
 class SARSA(EnsembleQLearning):
-    def __init__(self, init_state, final_state, agent, env, ep, gamma, plot=False):
-            super().__init__(1, init_state, final_state, agent, env, ep, gamma, plot)
+    def __init__(self, init_state, final_state, agent, env, ep, alpha, gamma, eps, epsdecay, plot=False):
+            super().__init__(1, init_state, final_state, agent, env, ep, alpha, gamma, eps, plot)
+
+            self.epsdecay = epsdecay
 
     def update_Q(self, state, next_state, action, r):
         row = self.agent.find_state_index(state)
@@ -193,8 +199,7 @@ class SARSA(EnsembleQLearning):
             col_next = self.agent.find_action_index(next_action)
             futureQ = self.Qs[0][row_next, col_next]
 
-        alpha = 1 if self.visit[row] < 2 else 1 / math.log2(self.visit[row])
-        self.Qs[0][row, col] = self.Qs[0][row, col] + alpha * (r + self.gamma * futureQ - self.Qs[0][row, col])
+        self.Qs[0][row, col] = self.Qs[0][row, col] + self.alpha * (r + self.gamma * futureQ - self.Qs[0][row, col])
 
     def run_episode(self):
         self.reset_agent()
@@ -211,7 +216,7 @@ class SARSA(EnsembleQLearning):
             path.append(state)
             aseq.append(action)
             
-            r = self.compute_reward(state, next_state) - (c + 1)/1000
+            r = self.compute_reward(state, next_state) - (c + 1)/10
             self.update_Q(state, next_state, action, r)
             self.visit[self.agent.find_state_index(state)] += 1
 
@@ -221,38 +226,34 @@ class SARSA(EnsembleQLearning):
 
         return path, state, aseq, er
 
-class KNNQLearning(EnsembleQLearning):
-    def __init__(self, n, kmax, beta, init_state, final_state, agent, env, ep, gamma, plot=False):
-        super().__init__(n, init_state, final_state, agent, env, ep, gamma, plot)
+    def learn(self):
+        if self.plot:
+             self.fig.show()
 
-        self.kmax = kmax
-        self.beta = beta
+        convg = []
+        rew = []
+        best = -10e99
+        try:
+            for i in range(self.ep):
+                path, terminal_state, _, er = self.run_episode()
 
-    def update_Q(self, state, next_state, action, r):
-        row = self.agent.find_state_index(state)
-        col = self.agent.find_action_index(action)
+                convg.append(self.convergence()[self.agent.find_state_index(self.init_state)])
+                rew.append(er)
 
-        k = self.kmax if self.visit[row] == 0 else min(int((10 / self.visit[row])), self.kmax)
-        indices, dist = self.agent.get_state_action_distance_indices(state, action)
-        indices = indices[1:k + 1]
-        weights = (1 / (dist + 0.00001))**self.beta
-        weights = weights[indices]
-        weights = weights / np.sum(weights)
-        #print(dist[indices[:self.k]])
-        #print(weights)
+                best = er if  er > best else best
 
-        maxQ = 0
-        if not self.is_terminal(next_state):
-            row_next = self.agent.find_state_index(next_state)
-            maxQ = self.Qs[0][row_next, np.argmax(self.Qs[0][row_next])]
+                self.eps = self.eps * self.epsdecay
 
-        alpha = 1 if self.visit[row] < 2 else 1 / math.log2(self.visit[row])
-        self.Qs[0][row, col] = self.Qs[0][row, col] + alpha * (r + self.gamma * maxQ - self.Qs[0][row, col])
-        
-        for i in range(k):
-            state_action = self.agent.get_state_action_by_index(indices[i])
-            row = self.agent.find_state_index(state_action[:4])
-            col = self.agent.find_action_index(state_action[4:])
+                if self.is_final(terminal_state):
+                    path.append(terminal_state)
+                    #print("Goal reached! Reward: " + str(er - 10) + " Best Reward: " + str(best - 10))
 
-            alpha = 1 if self.visit[row] < 2 else 1 / math.log2(self.visit[row])
-            self.Qs[0][row, col] = self.Qs[0][row, col] + alpha * weights[i] * (r + self.gamma * maxQ - self.Qs[0][row, col])
+                if self.plot:
+                    self.plot_learning(np.array(path))
+                    
+                if i % 1000 == 0:
+                    print('Completed Episode ' + str(i + 1))
+        except KeyboardInterrupt:
+            print('stop learning ...')
+            
+        return np.array(convg), np.array(rew)

@@ -10,15 +10,20 @@ find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 find_package(rosidl_default_generators REQUIRED)
-find_package(nav_msgs REQUIRED)
+find_package(px4_msgs REQUIRED)
 
 set(action_files
   "action/ExecutePath.action"
 )
 
+set(msg_files
+  "msg/Trajectory.msg"
+)
+
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${action_files}
-  DEPENDENCIES nav_msgs
+  ${msg_files}
+  DEPENDENCIES px4_msgs
 )
 
 if(BUILD_TESTING)
