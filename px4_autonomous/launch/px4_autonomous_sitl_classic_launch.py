@@ -90,6 +90,6 @@ def generate_launch_description():
             gzserver,
             gzclient,
             load_vehicle,
-            px4autonomous,
+            #px4autonomous,
         ]
     )

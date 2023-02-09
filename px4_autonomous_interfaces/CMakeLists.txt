@@ -13,7 +13,7 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(px4_msgs REQUIRED)
 
 set(action_files
-  "action/ExecutePath.action"
+  "action/ExecuteTrajectory.action"
 )
 
 set(msg_files
