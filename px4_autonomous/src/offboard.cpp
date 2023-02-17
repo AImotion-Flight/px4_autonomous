@@ -56,7 +56,7 @@ public:
 										   },
 										   [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<px4_autonomous_interfaces::action::ExecuteTrajectory>> goal_handle) {
 										     std::thread{[this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<px4_autonomous_interfaces::action::ExecuteTrajectory>> goal_handle) {
-										       RCLCPP_INFO(this->get_logger(), "Executing path ...");
+										       RCLCPP_INFO(this->get_logger(), "Executing trajectory ...");
 
 										       const auto goal = goal_handle->get_goal();
 										       auto feedback = std::make_shared<px4_autonomous_interfaces::action::ExecuteTrajectory::Feedback>();
@@ -67,7 +67,7 @@ public:
 										       for (unsigned int i = 0; i < size && rclcpp::ok(); ++i) {
 											      this->setpoint = goal->trajectory.setpoints[i];
 											 
-											      feedback->progress = i / size;
+											      feedback->progress = float(i) / float(size);
 											      goal_handle->publish_feedback(feedback);
 											 
 											      loop_rate.sleep();
@@ -76,7 +76,7 @@ public:
 										       if (rclcpp::ok()) {
 											      result->final_reached = true;
 											      goal_handle->succeed(result);
-											      RCLCPP_INFO(this->get_logger(), "Path executed");
+											      RCLCPP_INFO(this->get_logger(), "Trajectory executed");
 										       }
 										       
 										     }, goal_handle}.detach();
@@ -148,8 +148,8 @@ void Offboard::publish_trajectory_setpoint() {
   px4_msgs::msg::TrajectorySetpoint sp;
   sp.timestamp = this->get_clock()->now().nanoseconds() / 1000;
   sp.position = {this->setpoint.position[1] + 0.5f, this->setpoint.position[0] + 0.5f, -this->setpoint.position[2]};
-  sp.velocity = {this->setpoint.velocity[1], this->setpoint.velocity[0], -this->setpoint.velocity[2]};
-  sp.acceleration = {this->setpoint.acceleration[1], this->setpoint.acceleration[0], -this->setpoint.acceleration[2]};
+  //sp.velocity = {this->setpoint.velocity[1], this->setpoint.velocity[0], -this->setpoint.velocity[2]};
+  //sp.acceleration = {this->setpoint.acceleration[1], this->setpoint.acceleration[0], -this->setpoint.acceleration[2]};
   sp.yaw = this->setpoint.yaw;
 
   this->trajectory_setpoint_pub->publish(sp);
@@ -159,8 +159,8 @@ void Offboard::publish_offboard_control_mode() {
   px4_msgs::msg::OffboardControlMode control_mode;
   control_mode.timestamp = this->get_clock()->now().nanoseconds() / 1000;
   control_mode.position = true;
-  control_mode.velocity = true;
-  control_mode.acceleration = true;
+  control_mode.velocity = false;
+  control_mode.acceleration = false;
   control_mode.attitude = false;
   control_mode.body_rate = false;
 
