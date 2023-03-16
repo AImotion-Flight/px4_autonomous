@@ -62,7 +62,7 @@ public:
 										       auto feedback = std::make_shared<px4_autonomous_interfaces::action::ExecuteTrajectory::Feedback>();
 										       auto result = std::make_shared<px4_autonomous_interfaces::action::ExecuteTrajectory::Result>();
 
-										       rclcpp::Rate loop_rate(1);
+										       rclcpp::Rate loop_rate(10);
 										       unsigned int size = goal->trajectory.setpoints.size();
 										       for (unsigned int i = 0; i < size && rclcpp::ok(); ++i) {
 											      this->setpoint = goal->trajectory.setpoints[i];
