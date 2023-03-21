@@ -26,10 +26,14 @@ public:
     qos_sub.best_effort();
 
     this->vehicle_status_sub =
-      this->create_subscription<px4_msgs::msg::VehicleStatus>(this->vehicle_status_topic, qos_sub, [this](px4_msgs::msg::VehicleStatus::UniquePtr msg) {
-        this->armed = msg->arming_state;
-	      this->mode = msg->nav_state;
-      });
+      this->create_subscription<px4_msgs::msg::VehicleStatus>(
+        this->vehicle_status_topic,
+        qos_sub,
+        [this](px4_msgs::msg::VehicleStatus::UniquePtr msg) {
+          this->armed = msg->arming_state;
+	        this->mode = msg->nav_state;
+        }
+      );
     
     this->offboard_control_mode_pub =
       this->create_publisher<px4_msgs::msg::OffboardControlMode>(this->offboard_control_mode_topic, qos_pub);
@@ -41,46 +45,45 @@ public:
       this->create_publisher<px4_msgs::msg::VehicleCommand>(this->vehicle_command_topic, qos_pub);
 
     this->execute_path_action_server =
-      rclcpp_action::create_server<px4_autonomous_interfaces::action::ExecuteTrajectory>(this,
-										   "execute_trajectory",
-										   [this](const rclcpp_action::GoalUUID& uuid, std::shared_ptr<const px4_autonomous_interfaces::action::ExecuteTrajectory::Goal> goal) {
-                          RCLCPP_INFO(this->get_logger(), "Received a trajectory to execute");
-										     (void)uuid;
-										     (void)goal;
-										     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
-                       },
-										   [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<px4_autonomous_interfaces::action::ExecuteTrajectory>> goal_handle) {
-										     RCLCPP_INFO(this->get_logger(), "Received a request to cancel trajectory execution");
-										     (void)goal_handle;
-										     return rclcpp_action::CancelResponse::ACCEPT;
-										   },
-										   [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<px4_autonomous_interfaces::action::ExecuteTrajectory>> goal_handle) {
-										     std::thread{[this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<px4_autonomous_interfaces::action::ExecuteTrajectory>> goal_handle) {
-										       RCLCPP_INFO(this->get_logger(), "Executing trajectory ...");
+      rclcpp_action::create_server<px4_autonomous_interfaces::action::ExecuteTrajectory>(
+        this,
+        "execute_trajectory",
+        [this](const rclcpp_action::GoalUUID& uuid, std::shared_ptr<const px4_autonomous_interfaces::action::ExecuteTrajectory::Goal> goal) {
+          RCLCPP_INFO(this->get_logger(), "Received a trajectory to execute");
+          (void)uuid;
+          (void)goal;
+          return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+        },
+        [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<px4_autonomous_interfaces::action::ExecuteTrajectory>> goal_handle) {
+          RCLCPP_INFO(this->get_logger(), "Received a request to cancel trajectory execution");
+          (void)goal_handle;
+          return rclcpp_action::CancelResponse::ACCEPT;
+        },
+        [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<px4_autonomous_interfaces::action::ExecuteTrajectory>> goal_handle) {
+              std::thread{[this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<px4_autonomous_interfaces::action::ExecuteTrajectory>> goal_handle) {
+          RCLCPP_INFO(this->get_logger(), "Executing trajectory ...");
 
-										       const auto goal = goal_handle->get_goal();
-										       auto feedback = std::make_shared<px4_autonomous_interfaces::action::ExecuteTrajectory::Feedback>();
-										       auto result = std::make_shared<px4_autonomous_interfaces::action::ExecuteTrajectory::Result>();
+          const auto goal = goal_handle->get_goal();
+          auto feedback = std::make_shared<px4_autonomous_interfaces::action::ExecuteTrajectory::Feedback>();
+          auto result = std::make_shared<px4_autonomous_interfaces::action::ExecuteTrajectory::Result>();
 
-										       rclcpp::Rate loop_rate(10);
-										       unsigned int size = goal->trajectory.setpoints.size();
-										       for (unsigned int i = 0; i < size && rclcpp::ok(); ++i) {
-											      this->setpoint = goal->trajectory.setpoints[i];
-											 
-											      feedback->progress = float(i) / float(size);
-											      goal_handle->publish_feedback(feedback);
-											 
-											      loop_rate.sleep();
-										       }
+          rclcpp::Rate loop_rate(10);
+          unsigned int size = goal->trajectory.setpoints.size();
+          for (unsigned int i = 0; i < size && rclcpp::ok(); ++i) {
+            this->setpoint = goal->trajectory.setpoints[i];
+            feedback->progress = float(i) / float(size);
+            goal_handle->publish_feedback(feedback);
+            loop_rate.sleep();
+          }
 
-										       if (rclcpp::ok()) {
-											      result->final_reached = true;
-											      goal_handle->succeed(result);
-											      RCLCPP_INFO(this->get_logger(), "Trajectory executed");
-										       }
-										       
-										     }, goal_handle}.detach();
-										   });
+          if (rclcpp::ok()) {
+            result->final_reached = true;
+            goal_handle->succeed(result);
+            RCLCPP_INFO(this->get_logger(), "Trajectory executed");
+          }
+        }, goal_handle}.detach();
+        }
+      );
 
     this->setpoint.position[2] = 2.5;
     this->setpoint.yaw = M_PI / 2;
@@ -147,9 +150,7 @@ void Offboard::publish_vehicle_command(uint16_t command, float param1, float par
 void Offboard::publish_trajectory_setpoint() {
   px4_msgs::msg::TrajectorySetpoint sp;
   sp.timestamp = this->get_clock()->now().nanoseconds() / 1000;
-  sp.position = {this->setpoint.position[1] + 0.5f, this->setpoint.position[0] + 0.5f, -this->setpoint.position[2]};
-  //sp.velocity = {this->setpoint.velocity[1], this->setpoint.velocity[0], -this->setpoint.velocity[2]};
-  //sp.acceleration = {this->setpoint.acceleration[1], this->setpoint.acceleration[0], -this->setpoint.acceleration[2]};
+  sp.position = {this->setpoint.position[1], this->setpoint.position[0], -this->setpoint.position[2]};
   sp.yaw = this->setpoint.yaw;
 
   this->trajectory_setpoint_pub->publish(sp);

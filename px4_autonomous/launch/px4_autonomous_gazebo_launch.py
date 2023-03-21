@@ -11,28 +11,7 @@ def generate_launch_description():
     px4_gazebo_classic_dir = os.path.expanduser('~/PX4-Autopilot/Tools/simulation/gazebo-classic/sitl_gazebo-classic')
     gazebo_ros_share = get_package_share_directory('gazebo_ros')
     
-    vehicle_model = 'iris'
-    world = 'custom'
-
-    px4 = ExecuteProcess(
-        cmd=[
-            os.path.join(px4_build_dir, 'bin/px4'),
-            os.path.join(px4_build_dir, 'etc')
-        ],
-        additional_env={
-            'PX4_SIM_MODEL': 'gazebo-classic_' + vehicle_model,
-        },
-        output='screen'
-    )
-
-    micrortps = ExecuteProcess(
-        cmd=[
-            'micro-ros-agent',
-            'udp4',
-            '--port',
-            '8888'
-        ]
-    )
+    world = 'thi'
     
     model_path = AppendEnvironmentVariable(
         'GAZEBO_MODEL_PATH',
@@ -55,7 +34,7 @@ def generate_launch_description():
         ),
         launch_arguments={
             'verbose': 'true',
-            'world': os.path.join(share_dir, 'worlds', world + '.world')
+            'world': os.path.join(px4_gazebo_classic_dir, 'worlds', world + '.world')
         }.items()
     )
 
@@ -68,28 +47,22 @@ def generate_launch_description():
         }.items()
     )
 
-    load_vehicle = Node(
-        package='gazebo_ros',
-        executable='spawn_entity.py',
-        arguments=['-entity', 'uav', '-database', vehicle_model]
-    )
-
-    px4autonomous = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(share_dir, 'launch/px4_autonomous_launch.py')
-        )
+    xrce_dds_agent = ExecuteProcess(
+        cmd=[
+            'micro-xrce-dds-agent',
+            'udp4',
+            '-p',
+            '8888'
+        ]
     )
     
     return LaunchDescription(
         [
-            px4,
-            micrortps,
             model_path,
             plugin_path,
             ld_path,
             gzserver,
             gzclient,
-            load_vehicle,
-            #px4autonomous,
+            xrce_dds_agent
         ]
     )
