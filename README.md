@@ -26,6 +26,7 @@ Start the SITL simulation with:
 ros2 launch px4_autonomous px4_autonomous_sitl_classic_launch.py
 ```
 Launch PX4 offboard:
-```
+```bash
 ros2 launch px4_autonomous px4_autonomous_launch.py
+# Note: If PX4 is not automatically switching to offboard mode, open QGC and select the mode manually
 ```
