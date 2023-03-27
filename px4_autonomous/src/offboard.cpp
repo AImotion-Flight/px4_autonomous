@@ -2,8 +2,8 @@
 #include <cmath>
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
-#include "tf2/utils.h"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
 #include "px4_msgs/msg/offboard_control_mode.hpp"
 #include "px4_msgs/msg/vehicle_status.hpp"
 #include "px4_msgs/msg/trajectory_setpoint.hpp"
@@ -11,15 +11,19 @@
 #include "px4_autonomous_interfaces/action/execute_trajectory.hpp"
 #include "px4_autonomous_interfaces/msg/trajectory.hpp"
 
-using namespace std::chrono_literals;
-
 class Offboard : public rclcpp::Node {
 public:
-  Offboard() : Node("offboard"), offboard_setpoint_counter_(0), armed(0) {
+  Offboard() : Node("offboard"), offboard_setpoint_counter_(0), armed(0), mode(0), uav_id(0), setpoint_rate(0), system_id(0) {
+    this->uav_id = this->declare_parameter("uav_id", 1);
     this->vehicle_status_topic = this->declare_parameter("vehicle_status_topic", "/fmu/out/vehicle_status");
     this->offboard_control_mode_topic = this->declare_parameter("offboard_control_mode_topic", "/fmu/in/offboard_control_mode");
     this->trajectory_setpoint_topic = this->declare_parameter("trajectory_setpoint_topic", "/fmu/in/trajectory_setpoint");
     this->vehicle_command_topic = this->declare_parameter("vehicle_command_topic", "/fmu/in/vehicle_command");
+    this->setpoint_rate = this->declare_parameter("setpoint_rate", 100);
+    this->system_id = this->declare_parameter("system_id", 100);
+
+    this->tf_buffer = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+    this->tf_listener = std::make_shared<tf2_ros::TransformListener>(*this->tf_buffer);
     
     rclcpp::QoS qos_pub(10);
     rclcpp::QoS qos_sub(10);
@@ -27,7 +31,7 @@ public:
 
     this->vehicle_status_sub =
       this->create_subscription<px4_msgs::msg::VehicleStatus>(
-        this->vehicle_status_topic,
+        "/px4_" + std::to_string(this->uav_id) + this->vehicle_status_topic,
         qos_sub,
         [this](px4_msgs::msg::VehicleStatus::UniquePtr msg) {
           this->armed = msg->arming_state;
@@ -36,13 +40,13 @@ public:
       );
     
     this->offboard_control_mode_pub =
-      this->create_publisher<px4_msgs::msg::OffboardControlMode>(this->offboard_control_mode_topic, qos_pub);
+      this->create_publisher<px4_msgs::msg::OffboardControlMode>("/px4_" + std::to_string(this->uav_id) + this->offboard_control_mode_topic, qos_pub);
 
     this->trajectory_setpoint_pub =
-      this->create_publisher<px4_msgs::msg::TrajectorySetpoint>(this->trajectory_setpoint_topic, qos_pub);
+      this->create_publisher<px4_msgs::msg::TrajectorySetpoint>("/px4_" + std::to_string(this->uav_id) + this->trajectory_setpoint_topic, qos_pub);
 
     this->vehicle_command_pub =
-      this->create_publisher<px4_msgs::msg::VehicleCommand>(this->vehicle_command_topic, qos_pub);
+      this->create_publisher<px4_msgs::msg::VehicleCommand>("/px4_" + std::to_string(this->uav_id) + this->vehicle_command_topic, qos_pub);
 
     this->execute_path_action_server =
       rclcpp_action::create_server<px4_autonomous_interfaces::action::ExecuteTrajectory>(
@@ -85,16 +89,15 @@ public:
         }
       );
 
-    this->setpoint.position[2] = 2.5;
-    this->setpoint.yaw = M_PI / 2;
+    this->set_position_setpoint(0, 0, -1, M_PI /2);
 
-    this->setpoint_timer = this->create_wall_timer(10ms, [this]() {
+    this->setpoint_timer = this->create_wall_timer(std::chrono::milliseconds(this->setpoint_rate), [this]() {
       if (offboard_setpoint_counter_ == 10) {
-				// Change to Offboard mode after 10 setpoints
-				this->publish_vehicle_command(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
+        // Change to Offboard mode after 10 setpoints
+        this->publish_vehicle_command(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
 
-				// Arm the vehicle
-				this->arm();
+        // Arm the vehicle
+        this->arm();
 			}
 
 			// offboard_control_mode needs to be paired with trajectory_setpoint
@@ -111,20 +114,26 @@ public:
 private:
   void subscribe_vehicle_status(px4_msgs::msg::VehicleStatus::UniquePtr msg);
   void publish_vehicle_command(uint16_t command, float param1 = 0.0, float param2 = 0.0);
+  void set_position_setpoint(float x, float y, float z, float yaw);
   void publish_trajectory_setpoint();
   void publish_offboard_control_mode();
   void arm();
   void disarm();
+  tf2::Vector3 transform_point(tf2::Vector3 point, std::string from, std::string to);
 
   uint64_t offboard_setpoint_counter_;
   uint8_t armed;
   uint8_t mode;
   px4_msgs::msg::TrajectorySetpoint setpoint;
-  std::string uav_name;
+  uint8_t uav_id;
   std::string vehicle_status_topic;
   std::string offboard_control_mode_topic;
   std::string trajectory_setpoint_topic;
   std::string vehicle_command_topic;
+  uint64_t setpoint_rate;
+  uint8_t system_id;
+  std::unique_ptr<tf2_ros::Buffer> tf_buffer;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener;
   rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr vehicle_status_sub;
   rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr offboard_control_mode_pub;
   rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr trajectory_setpoint_pub;
@@ -138,20 +147,23 @@ void Offboard::publish_vehicle_command(uint16_t command, float param1, float par
 	msg.param1 = param1;
 	msg.param2 = param2;
 	msg.command = command;
-	msg.target_system = 1;
+	msg.target_system = this->uav_id + 1;
 	msg.target_component = 1;
-	msg.source_system = 1;
+	msg.source_system = this->system_id;
 	msg.source_component = 1;
 	msg.from_external = true;
 	msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 	this->vehicle_command_pub->publish(msg);
 }
 
+void Offboard::set_position_setpoint(float x, float y, float z, float yaw) {
+  this->setpoint.position = {x, y, z};
+  this->setpoint.yaw = yaw;
+}
+
 void Offboard::publish_trajectory_setpoint() {
-  px4_msgs::msg::TrajectorySetpoint sp;
+  px4_msgs::msg::TrajectorySetpoint sp = this->setpoint;
   sp.timestamp = this->get_clock()->now().nanoseconds() / 1000;
-  sp.position = {this->setpoint.position[1], this->setpoint.position[0], -this->setpoint.position[2]};
-  sp.yaw = this->setpoint.yaw;
 
   this->trajectory_setpoint_pub->publish(sp);
 }

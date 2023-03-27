@@ -8,12 +8,69 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 def generate_launch_description():
     px4_build_dir = os.path.expanduser('~/PX4-Autopilot/build/px4_sitl_default')
     px4_gazebo_classic_dir = os.path.expanduser('~/PX4-Autopilot/Tools/simulation/gazebo-classic/sitl_gazebo-classic')
+    gazebo_ros_share = get_package_share_directory('gazebo_ros')
     
-    n = 3
     vehicle_model = 'typhoon_h480_thi'
+    world = 'thi'
+    
+    model_path = AppendEnvironmentVariable(
+        'GAZEBO_MODEL_PATH',
+        os.path.join(px4_gazebo_classic_dir, 'models')
+    )
 
-    launch_entities = []
+    plugin_path = AppendEnvironmentVariable(
+        'GAZEBO_PLUGIN_PATH',
+        os.path.join(px4_build_dir, 'build_gazebo-classic')
+    )
 
+    ld_path = AppendEnvironmentVariable(
+        'LD_LIBRARY_PATH',
+        os.path.join(px4_build_dir, 'build_gazebo-classic')
+    )
+    
+    gzserver = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(gazebo_ros_share, 'launch/gzserver.launch.py')
+        ),
+        launch_arguments={
+            'verbose': 'true',
+            'world': os.path.join(px4_gazebo_classic_dir, 'worlds', world + '.world')
+        }.items()
+    )
+
+    gzclient = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(gazebo_ros_share, 'launch/gzclient.launch.py')
+        ),
+        launch_arguments={
+            'verbose': 'true'
+        }.items()
+    )
+
+    xrce_dds_agent = ExecuteProcess(
+        cmd=[
+            'micro-xrce-dds-agent',
+            'udp4',
+            '-p',
+            '8888'
+        ]
+    )
+
+    launch_entities = [
+        model_path,
+        plugin_path,
+        ld_path,
+        gzserver,
+        gzclient,
+        xrce_dds_agent,
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            arguments=['-d', os.path.join(get_package_share_directory('px4_autonomous'), 'config/visualization.rviz')]
+        )
+    ]
+    initial_coords = [(1, 0, 1), (1, 2, 1), (1, 4, 1), (1, 6, 1)]
+    n = 4
     for k in range(1, n + 1):
         gen_sdf = ExecuteProcess(
             cmd=[
@@ -37,6 +94,20 @@ def generate_launch_description():
                 '/tmp/' + vehicle_model + '_' + str(k) + '.sdf'
             ]
         )
+        x = initial_coords[k - 1][0]
+        y = initial_coords[k - 1][1]
+        z = initial_coords[k - 1][2]
+        load_vehicle = Node(
+            package='gazebo_ros',
+            executable='spawn_entity.py',
+            arguments=[
+                '-entity', 'uav_' + str(k),
+                '-file', '/tmp/' + vehicle_model + '_' + str(k) + '.sdf',
+                '-x', str(x),
+                '-y', str(y),
+                '-z', str(z)
+            ]
+        )
         px4 = ExecuteProcess(
             cmd=[
                 os.path.join(px4_build_dir, 'bin/px4'),
@@ -50,19 +121,8 @@ def generate_launch_description():
             },
             output='screen'
         )
-        load_vehicle = Node(
-            package='gazebo_ros',
-            executable='spawn_entity.py',
-            arguments=[
-                '-entity', 'uav_' + str(k),
-                '-file', '/tmp/' + vehicle_model + '_' + str(k) + '.sdf',
-                '-y', str(k * 2)
-            ]
-        )
         launch_entities.append(gen_sdf)
-        launch_entities.append(px4)
         launch_entities.append(load_vehicle)
+        launch_entities.append(px4)
     
-    return LaunchDescription(
-        launch_entities
-    )
+    return LaunchDescription(launch_entities)
