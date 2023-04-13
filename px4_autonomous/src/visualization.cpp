@@ -49,10 +49,10 @@ public:
       [this]() {
         geometry_msgs::msg::PoseStamped pose;
         pose.header.stamp = this->get_clock()->now();
-        pose.header.frame_id = "px4";
-        pose.pose.position.x = this->position[0] + this->initial_x;
-        pose.pose.position.y = this->position[1] + this->initial_y;
-        pose.pose.position.z = -this->position[2];
+        pose.header.frame_id = "px4_uav_" + std::to_string(this->uav_id);
+        pose.pose.position.x = this->position[0];
+        pose.pose.position.y = this->position[1];
+        pose.pose.position.z = this->position[2];
         pose.pose.orientation.w = this->attitude[0];
         pose.pose.orientation.x = this->attitude[1];
         pose.pose.orientation.y = this->attitude[2];
@@ -61,7 +61,7 @@ public:
         
         nav_msgs::msg::Path path;
         path.header.stamp = this->get_clock()->now();
-        path.header.frame_id = "px4";
+        path.header.frame_id = "px4_uav_" + std::to_string(this->uav_id);
         path.poses = this->path_poses;
         this->path_pub->publish(path);
       }

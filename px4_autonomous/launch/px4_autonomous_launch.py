@@ -37,7 +37,7 @@ def generate_launch_description():
                 }]
             )
         )
-        '''launch_entities.append(
+        launch_entities.append(
             Node(
                 package='px4_autonomous',
                 executable='visualization',
@@ -48,6 +48,6 @@ def generate_launch_description():
                     'initial_y': y
                 }]
             )
-        )'''
+        )
 
     return LaunchDescription(launch_entities)
