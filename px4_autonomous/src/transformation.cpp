@@ -26,12 +26,16 @@ public:
           geometry_msgs::msg::TransformStamped t;
 
           t.header.stamp = this->get_clock()->now();
-          t.header.frame_id = "px4";
+          t.header.frame_id = "px4_uav_" + std::to_string(this->uav_id);
           t.child_frame_id = "uav_" + std::to_string(this->uav_id);
 
-          t.transform.translation.x = msg->x + this->initial_x;
-          t.transform.translation.y = msg->y + this->initial_y;
-          t.transform.translation.z = -msg->z;
+          t.transform.translation.x = msg->x;
+          t.transform.translation.y = msg->y;
+          t.transform.translation.z = msg->z;
+          t.transform.rotation.x = 0.7071068;
+          t.transform.rotation.y = 0.7071068;
+          t.transform.rotation.z = 0;
+          t.transform.rotation.w = 0;
 
           this->tf_broadcaster->sendTransform(t);
         }

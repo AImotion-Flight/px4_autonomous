@@ -67,10 +67,15 @@ def generate_launch_description():
             package='rviz2',
             executable='rviz2',
             arguments=['-d', os.path.join(get_package_share_directory('px4_autonomous'), 'config/visualization.rviz')]
+        ),
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            arguments=["0", "0", "0", "0.7071068", "0.7071068", "0", "0", "px4", "gazebo"]
         )
     ]
-    initial_coords = [(1, 0, 1), (1, 2, 1), (1, 4, 1), (1, 6, 1)]
-    n = 4
+    initial_coords = [(1, 0, 1), (1, 2, 1), (1, 4, 1)]
+    n = 3
     for k in range(1, n + 1):
         gen_sdf = ExecuteProcess(
             cmd=[
@@ -121,8 +126,14 @@ def generate_launch_description():
             },
             output='screen'
         )
+        transform = Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            arguments=[str(x), str(y), "0", "0.7071068", "0.7071068", "0", "0", "gazebo", "px4_uav_" + str(k)]
+        )
         launch_entities.append(gen_sdf)
         launch_entities.append(load_vehicle)
         launch_entities.append(px4)
+        launch_entities.append(transform)
     
     return LaunchDescription(launch_entities)

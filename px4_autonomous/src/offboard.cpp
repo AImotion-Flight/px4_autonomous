@@ -1,5 +1,6 @@
 #include <chrono>
 #include <cmath>
+#include <array>
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "tf2_ros/buffer.h"
@@ -8,17 +9,20 @@
 #include "px4_msgs/msg/vehicle_status.hpp"
 #include "px4_msgs/msg/trajectory_setpoint.hpp"
 #include "px4_msgs/msg/vehicle_command.hpp"
+#include "px4_msgs/msg/vehicle_local_position.hpp"
 #include "px4_autonomous_interfaces/action/execute_trajectory.hpp"
 #include "px4_autonomous_interfaces/msg/trajectory.hpp"
 
 class Offboard : public rclcpp::Node {
 public:
-  Offboard() : Node("offboard"), offboard_setpoint_counter_(0), armed(0), mode(0), uav_id(0), setpoint_rate(0), system_id(0) {
+  Offboard() : Node("offboard"), offboard_setpoint_counter_(0), armed(0), mode(0), uav_id(0), partner_id(0), setpoint_rate(0), system_id(0) {
     this->uav_id = this->declare_parameter("uav_id", 1);
+    this->partner_id = this->declare_parameter("partner_id", 1);
     this->vehicle_status_topic = this->declare_parameter("vehicle_status_topic", "/fmu/out/vehicle_status");
     this->offboard_control_mode_topic = this->declare_parameter("offboard_control_mode_topic", "/fmu/in/offboard_control_mode");
     this->trajectory_setpoint_topic = this->declare_parameter("trajectory_setpoint_topic", "/fmu/in/trajectory_setpoint");
     this->vehicle_command_topic = this->declare_parameter("vehicle_command_topic", "/fmu/in/vehicle_command");
+    this->vehicle_local_position_topic = this->declare_parameter("vehicle_local_position", "/fmu/out/vehicle_local_position");
     this->setpoint_rate = this->declare_parameter("setpoint_rate", 100);
     this->system_id = this->declare_parameter("system_id", 100);
 
@@ -38,6 +42,34 @@ public:
 	        this->mode = msg->nav_state;
         }
       );
+
+    if (this->uav_id != 1) {
+      this->leader_vehicle_local_position_sub =
+        this->create_subscription<px4_msgs::msg::VehicleLocalPosition>(
+          "/px4_1" + this->vehicle_local_position_topic,
+          qos_sub,
+          [this](px4_msgs::msg::VehicleLocalPosition::UniquePtr msg) {
+            tf2::Vector3 point(msg->x, msg->y, msg->z);
+            tf2::Vector3 transformed = this->transform_point(point, "px4_uav_1", "gazebo");
+            this->leader_pos[0] = transformed.x();
+            this->leader_pos[1] = transformed.y();
+            this->leader_pos[2] = transformed.z();
+          }
+        );
+
+      this->partner_vehicle_local_position_sub =
+        this->create_subscription<px4_msgs::msg::VehicleLocalPosition>(
+          "/px4_" + std::to_string(this->partner_id) + this->vehicle_local_position_topic,
+          qos_sub,
+          [this](px4_msgs::msg::VehicleLocalPosition::UniquePtr msg) {
+            tf2::Vector3 point(msg->x, msg->y, msg->z);
+            tf2::Vector3 transformed = this->transform_point(point, "px4_uav_" + std::to_string(this->partner_id), "gazebo");
+            this->partner_pos[0] = transformed.x();
+            this->partner_pos[1] = transformed.y();
+            this->partner_pos[2] = transformed.z();
+          }
+        );
+    }
     
     this->offboard_control_mode_pub =
       this->create_publisher<px4_msgs::msg::OffboardControlMode>("/px4_" + std::to_string(this->uav_id) + this->offboard_control_mode_topic, qos_pub);
@@ -89,7 +121,13 @@ public:
         }
       );
 
-    this->set_position_setpoint(0, 0, -1, M_PI /2);
+    this->control_timer = this->create_wall_timer(std::chrono::milliseconds(this->setpoint_rate), [this]() {
+      float x = 1; //this->uav_id != 1 ? this->leader_pos[0] : 5;
+      float y = 2; //this->uav_id != 1 ? this->leader_pos[1] : 10;
+      float z = 1 + this->uav_id; //-this->uav_id;
+      float yaw = M_PI / 2;
+      this->set_position_setpoint(x, y, z, yaw);
+    });
 
     this->setpoint_timer = this->create_wall_timer(std::chrono::milliseconds(this->setpoint_rate), [this]() {
       if (offboard_setpoint_counter_ == 10) {
@@ -125,20 +163,27 @@ private:
   uint8_t armed;
   uint8_t mode;
   px4_msgs::msg::TrajectorySetpoint setpoint;
+  std::array<float, 3> leader_pos;
+  std::array<float, 3> partner_pos;
   uint8_t uav_id;
+  uint8_t partner_id;
   std::string vehicle_status_topic;
   std::string offboard_control_mode_topic;
   std::string trajectory_setpoint_topic;
   std::string vehicle_command_topic;
+  std::string vehicle_local_position_topic;
   uint64_t setpoint_rate;
   uint8_t system_id;
   std::unique_ptr<tf2_ros::Buffer> tf_buffer;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener;
   rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr vehicle_status_sub;
+  rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr leader_vehicle_local_position_sub;
+  rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr partner_vehicle_local_position_sub;
   rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr offboard_control_mode_pub;
   rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr trajectory_setpoint_pub;
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr vehicle_command_pub;
   rclcpp_action::Server<px4_autonomous_interfaces::action::ExecuteTrajectory>::SharedPtr execute_path_action_server;
+  rclcpp::TimerBase::SharedPtr control_timer;
   rclcpp::TimerBase::SharedPtr setpoint_timer;
 };
 
@@ -157,7 +202,8 @@ void Offboard::publish_vehicle_command(uint16_t command, float param1, float par
 }
 
 void Offboard::set_position_setpoint(float x, float y, float z, float yaw) {
-  this->setpoint.position = {x, y, z};
+  tf2::Vector3 transformed = this->transform_point(tf2::Vector3(x, y, z), "gazebo", "px4_uav_" + std::to_string(this->uav_id));
+  this->setpoint.position = {(float)transformed.x(), (float)transformed.y(), (float)transformed.z()};
   this->setpoint.yaw = yaw;
 }
 
@@ -190,6 +236,20 @@ void Offboard::disarm() {
   publish_vehicle_command(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 0.0);
 
 	RCLCPP_INFO(this->get_logger(), "Disarm command send");
+}
+
+tf2::Vector3 Offboard::transform_point(tf2::Vector3 point, std::string from, std::string to) {
+  geometry_msgs::msg::TransformStamped t;
+  try {
+    t = this->tf_buffer->lookupTransform(to, from, tf2::TimePointZero);
+  } catch (tf2::LookupException& ex) {
+    RCLCPP_INFO(this->get_logger(), "Could not transform %s to %s: %s", from.c_str(), to.c_str(), ex.what());
+    return tf2::Vector3();
+  }
+  tf2::Vector3 translation(t.transform.translation.x, t.transform.translation.y, t.transform.translation.z);
+  tf2::Quaternion rotation(t.transform.rotation.x, t.transform.rotation.y, t.transform.rotation.z, t.transform.rotation.w);
+  tf2::Transform transform(rotation, translation);
+  return transform * point;
 }
 
 int main(int argc, char ** argv)
