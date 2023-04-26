@@ -15,7 +15,7 @@
 
 class Offboard : public rclcpp::Node {
 public:
-  Offboard() : Node("offboard"), offboard_setpoint_counter_(0), armed(0), mode(0), uav_id(0), partner_id(0), setpoint_rate(0), system_id(0) {
+  Offboard() : Node("offboard"), offboard_setpoint_counter_(0), armed(0), mode(0), d_safe(1), uav_id(0), partner_id(0), setpoint_rate(0), system_id(0) {
     this->uav_id = this->declare_parameter("uav_id", 1);
     this->partner_id = this->declare_parameter("partner_id", 1);
     this->vehicle_status_topic = this->declare_parameter("vehicle_status_topic", "/fmu/out/vehicle_status");
@@ -70,6 +70,19 @@ public:
           }
         );
     }
+
+    this->vehicle_local_position_sub =
+      this->create_subscription<px4_msgs::msg::VehicleLocalPosition>(
+        "/px4_" + std::to_string(this->uav_id) + this->vehicle_local_position_topic,
+        qos_sub,
+        [this](px4_msgs::msg::VehicleLocalPosition::UniquePtr msg) {
+          tf2::Vector3 point(msg->x, msg->y, msg->z);
+          tf2::Vector3 transformed = this->transform_point(point, "px4_uav_" + std::to_string(this->uav_id), "gazebo");
+          this->pos[0] = transformed.x();
+          this->pos[1] = transformed.y();
+          this->pos[2] = transformed.z();
+        }
+      );
     
     this->offboard_control_mode_pub =
       this->create_publisher<px4_msgs::msg::OffboardControlMode>("/px4_" + std::to_string(this->uav_id) + this->offboard_control_mode_topic, qos_pub);
@@ -122,9 +135,20 @@ public:
       );
 
     this->control_timer = this->create_wall_timer(std::chrono::milliseconds(this->setpoint_rate), [this]() {
-      float x = 1; //this->uav_id != 1 ? this->leader_pos[0] : 5;
-      float y = 2; //this->uav_id != 1 ? this->leader_pos[1] : 10;
-      float z = 1 + this->uav_id; //-this->uav_id;
+      float x = 10;
+      float y = 10;
+      float z = 5;
+
+      if (this->uav_id == 2) {
+        x = (this->leader_pos[0] - this->d_safe) + (this->partner_pos[0] - this->pos[0] + this->d_safe);
+        y = (this->leader_pos[1] - this->d_safe) + (this->partner_pos[1] - this->pos[1] + this->d_safe);
+        z = (this->leader_pos[2] - this->d_safe) + (this->partner_pos[2] - this->pos[2] + this->d_safe);
+      } else if (this->uav_id == 3) {
+        x = (this->leader_pos[0] - this->d_safe) + (this->partner_pos[0] - this->pos[0] - this->d_safe);
+        y = (this->leader_pos[1] - this->d_safe) + (this->partner_pos[1] - this->pos[1] - this->d_safe);
+        z = (this->leader_pos[2] - this->d_safe) + (this->partner_pos[2] - this->pos[2] - this->d_safe);
+      }
+
       float yaw = M_PI / 2;
       this->set_position_setpoint(x, y, z, yaw);
     });
@@ -162,9 +186,11 @@ private:
   uint64_t offboard_setpoint_counter_;
   uint8_t armed;
   uint8_t mode;
+  double d_safe;
   px4_msgs::msg::TrajectorySetpoint setpoint;
   std::array<float, 3> leader_pos;
   std::array<float, 3> partner_pos;
+  std::array<float, 3> pos;
   uint8_t uav_id;
   uint8_t partner_id;
   std::string vehicle_status_topic;
@@ -177,6 +203,7 @@ private:
   std::unique_ptr<tf2_ros::Buffer> tf_buffer;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener;
   rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr vehicle_status_sub;
+  rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr vehicle_local_position_sub;
   rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr leader_vehicle_local_position_sub;
   rclcpp::Subscription<px4_msgs::msg::VehicleLocalPosition>::SharedPtr partner_vehicle_local_position_sub;
   rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr offboard_control_mode_pub;
