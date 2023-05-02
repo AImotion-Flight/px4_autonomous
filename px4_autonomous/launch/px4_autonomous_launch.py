@@ -1,13 +1,11 @@
-import os
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
 def generate_launch_description():
     launch_entities = []
 
-    initial_args = [(1, 0, 1, 5), (1, 2, 1, 3), (1, 4, 1, 2)] # (x, y, z, partner_id)
-    n = 3
+    initial_args = [(1, 0, 1, 5)] # (x, y, z, partner_id)
+    n = 1
     for k in range(1, n + 1):
         x = initial_args[k - 1][0]
         y = initial_args[k - 1][1]

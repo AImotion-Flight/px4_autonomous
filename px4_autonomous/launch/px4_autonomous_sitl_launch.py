@@ -74,8 +74,8 @@ def generate_launch_description():
             arguments=["0", "0", "0", "0.7071068", "0.7071068", "0", "0", "px4", "gazebo"]
         )
     ]
-    initial_coords = [(1, 0, 1), (1, 2, 1), (1, 4, 1)]
-    n = 3
+    initial_coords = [(0.5, 0.5, 1)] # (x, y, z)
+    n = 1
     for k in range(1, n + 1):
         gen_sdf = ExecuteProcess(
             cmd=[

@@ -135,11 +135,11 @@ public:
       );
 
     this->control_timer = this->create_wall_timer(std::chrono::milliseconds(this->setpoint_rate), [this]() {
-      float x = 10;
-      float y = 10;
-      float z = 5;
+      float x = 0.5;
+      float y = 0.5;
+      float z = 1.5;
 
-      if (this->uav_id == 2) {
+      /*if (this->uav_id == 2) {
         x = (this->leader_pos[0] - this->d_safe) + (this->partner_pos[0] - this->pos[0] + this->d_safe);
         y = (this->leader_pos[1] - this->d_safe) + (this->partner_pos[1] - this->pos[1] + this->d_safe);
         z = (this->leader_pos[2] - this->d_safe) + (this->partner_pos[2] - this->pos[2] + this->d_safe);
@@ -147,7 +147,7 @@ public:
         x = (this->leader_pos[0] - this->d_safe) + (this->partner_pos[0] - this->pos[0] - this->d_safe);
         y = (this->leader_pos[1] - this->d_safe) + (this->partner_pos[1] - this->pos[1] - this->d_safe);
         z = (this->leader_pos[2] - this->d_safe) + (this->partner_pos[2] - this->pos[2] - this->d_safe);
-      }
+      }*/
 
       float yaw = M_PI / 2;
       this->set_position_setpoint(x, y, z, yaw);
