@@ -4,8 +4,8 @@ from launch_ros.actions import Node
 def generate_launch_description():
     launch_entities = []
 
-    initial_args = [(1, 0, 1, 5)] # (x, y, z, partner_id)
-    n = 1
+    initial_args = [(0.5, 0.5, 1, 5)]#, (-0.5, 0.5, 1, 3), (-1.5, 0.5, 1, 2)] # (x, y, z, partner_id)
+    n = len(initial_args)
     for k in range(1, n + 1):
         x = initial_args[k - 1][0]
         y = initial_args[k - 1][1]

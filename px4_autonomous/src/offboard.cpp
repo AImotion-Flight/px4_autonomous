@@ -15,7 +15,7 @@
 
 class Offboard : public rclcpp::Node {
 public:
-  Offboard() : Node("offboard"), offboard_setpoint_counter_(0), armed(0), mode(0), d_safe(1), uav_id(0), partner_id(0), setpoint_rate(0), system_id(0) {
+  Offboard() : Node("offboard"), executing_trajectory(false), offboard_setpoint_counter_(0), armed(0), mode(0), d_safe(1), uav_id(0), partner_id(0), setpoint_rate(0), system_id(0) {
     this->uav_id = this->declare_parameter("uav_id", 1);
     this->partner_id = this->declare_parameter("partner_id", 1);
     this->vehicle_status_topic = this->declare_parameter("vehicle_status_topic", "/fmu/out/vehicle_status");
@@ -93,7 +93,7 @@ public:
     this->vehicle_command_pub =
       this->create_publisher<px4_msgs::msg::VehicleCommand>("/px4_" + std::to_string(this->uav_id) + this->vehicle_command_topic, qos_pub);
 
-    this->execute_path_action_server =
+    this->execute_trajectory_action_server =
       rclcpp_action::create_server<px4_autonomous_interfaces::action::ExecuteTrajectory>(
         this,
         "execute_trajectory",
@@ -101,6 +101,7 @@ public:
           RCLCPP_INFO(this->get_logger(), "Received a trajectory to execute");
           (void)uuid;
           (void)goal;
+          this->executing_trajectory = true;
           return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
         },
         [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<px4_autonomous_interfaces::action::ExecuteTrajectory>> goal_handle) {
@@ -116,10 +117,10 @@ public:
           auto feedback = std::make_shared<px4_autonomous_interfaces::action::ExecuteTrajectory::Feedback>();
           auto result = std::make_shared<px4_autonomous_interfaces::action::ExecuteTrajectory::Result>();
 
-          rclcpp::Rate loop_rate(10);
+          rclcpp::Rate loop_rate(0.75);
           unsigned int size = goal->trajectory.setpoints.size();
           for (unsigned int i = 0; i < size && rclcpp::ok(); ++i) {
-            this->setpoint = goal->trajectory.setpoints[i];
+            this->set_position_setpoint(goal->trajectory.setpoints[i].position[0] + 0.5, goal->trajectory.setpoints[i].position[1] + 0.5, goal->trajectory.setpoints[i].position[2] + 0.5, M_PI / 2);
             feedback->progress = float(i) / float(size);
             goal_handle->publish_feedback(feedback);
             loop_rate.sleep();
@@ -139,7 +140,7 @@ public:
       float y = 0.5;
       float z = 1.5;
 
-      /*if (this->uav_id == 2) {
+      if (this->uav_id == 2) {
         x = (this->leader_pos[0] - this->d_safe) + (this->partner_pos[0] - this->pos[0] + this->d_safe);
         y = (this->leader_pos[1] - this->d_safe) + (this->partner_pos[1] - this->pos[1] + this->d_safe);
         z = (this->leader_pos[2] - this->d_safe) + (this->partner_pos[2] - this->pos[2] + this->d_safe);
@@ -147,7 +148,11 @@ public:
         x = (this->leader_pos[0] - this->d_safe) + (this->partner_pos[0] - this->pos[0] - this->d_safe);
         y = (this->leader_pos[1] - this->d_safe) + (this->partner_pos[1] - this->pos[1] - this->d_safe);
         z = (this->leader_pos[2] - this->d_safe) + (this->partner_pos[2] - this->pos[2] - this->d_safe);
-      }*/
+      }
+
+      if (this->executing_trajectory) {
+        return;
+      }
 
       float yaw = M_PI / 2;
       this->set_position_setpoint(x, y, z, yaw);
@@ -183,6 +188,7 @@ private:
   void disarm();
   tf2::Vector3 transform_point(tf2::Vector3 point, std::string from, std::string to);
 
+  bool executing_trajectory;
   uint64_t offboard_setpoint_counter_;
   uint8_t armed;
   uint8_t mode;
@@ -209,7 +215,7 @@ private:
   rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr offboard_control_mode_pub;
   rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr trajectory_setpoint_pub;
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr vehicle_command_pub;
-  rclcpp_action::Server<px4_autonomous_interfaces::action::ExecuteTrajectory>::SharedPtr execute_path_action_server;
+  rclcpp_action::Server<px4_autonomous_interfaces::action::ExecuteTrajectory>::SharedPtr execute_trajectory_action_server;
   rclcpp::TimerBase::SharedPtr control_timer;
   rclcpp::TimerBase::SharedPtr setpoint_timer;
 };

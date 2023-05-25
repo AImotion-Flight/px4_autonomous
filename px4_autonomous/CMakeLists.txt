@@ -17,6 +17,9 @@ find_package(trajectory_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(px4_autonomous_interfaces REQUIRED)
 find_package(rclcpp_action REQUIRED)
+find_package(gazebo REQUIRED)
+find_package(gazebo_ros REQUIRED)
+find_package(std_srvs REQUIRED)
 
 add_executable(offboard src/offboard.cpp)
 target_include_directories(offboard PUBLIC
@@ -39,10 +42,18 @@ target_include_directories(visualization PUBLIC
 target_compile_features(visualization PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 ament_target_dependencies(visualization rclcpp px4_msgs geometry_msgs nav_msgs tf2_ros)
 
-install(TARGETS offboard transformation visualization
+add_library(gazebo_occupancy_grid_plugin SHARED plugins/gazebo_occupancy_grid_plugin.cpp)
+target_include_directories(gazebo_occupancy_grid_plugin PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${GAZEBO_INCLUDE_DIRS})
+target_compile_features(gazebo_occupancy_grid_plugin PUBLIC c_std_99 cxx_std_17)
+ament_target_dependencies(gazebo_occupancy_grid_plugin gazebo gazebo_ros nav_msgs std_srvs)
+
+install(TARGETS offboard transformation visualization gazebo_occupancy_grid_plugin
   DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY launch config worlds
+install(DIRECTORY launch config models worlds
   DESTINATION share/${PROJECT_NAME}/
 )
 

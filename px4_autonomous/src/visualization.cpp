@@ -6,10 +6,10 @@
 
 class Visualization : public rclcpp::Node {
 public:
-  Visualization() : Node("visualization"), uav_id(0), initial_x(0), initial_y(0) {
+  Visualization() : Node("visualization"), uav_id(0), initial_x(0.0), initial_y(0.0) {
     this->uav_id = this->declare_parameter("uav_id", 1);
-    this->initial_x = this->declare_parameter("initial_x", 0);
-    this->initial_y = this->declare_parameter("initial_y", 0);
+    this->initial_x = this->declare_parameter("initial_x", 0.0);
+    this->initial_y = this->declare_parameter("initial_y", 0.0);
     this->vehicle_attitude_topic = this->declare_parameter("vehicle_attitude", "/fmu/out/vehicle_attitude");
     this->vehicle_local_position_topic = this->declare_parameter("vehicle_local_position", "/fmu/out/vehicle_local_position");
     this->path_topic = this->declare_parameter("path_topic", "visualization/path");

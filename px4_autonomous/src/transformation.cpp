@@ -7,10 +7,10 @@ using namespace std::chrono_literals;
 
 class Transformation : public rclcpp::Node {
 public:
-  Transformation() : Node("transformation"), uav_id(0), initial_x(0), initial_y(0) {
+  Transformation() : Node("transformation"), uav_id(0), initial_x(0.0), initial_y(0.0) {
     this->uav_id = this->declare_parameter("uav_id", 1);
-    this->initial_x = this->declare_parameter("initial_x", 0);
-    this->initial_y = this->declare_parameter("initial_y", 0);
+    this->initial_x = this->declare_parameter("initial_x", 0.0);
+    this->initial_y = this->declare_parameter("initial_y", 0.0);
     this->vehicle_local_position_topic = this->declare_parameter("vehicle_local_position", "/fmu/out/vehicle_local_position");
     
     rclcpp::QoS qos_sub(10);

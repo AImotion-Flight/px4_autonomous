@@ -14,6 +14,7 @@ find_package(px4_msgs REQUIRED)
 
 set(action_files
   "action/ExecuteTrajectory.action"
+  "action/LearnTrajectory.action"
 )
 
 set(msg_files

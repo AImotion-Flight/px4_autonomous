@@ -1,16 +1,18 @@
 import os
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import get_package_share_directory, get_package_prefix
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess, IncludeLaunchDescription, AppendEnvironmentVariable
 from launch_ros.actions import Node
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 def generate_launch_description():
+    install_dir = get_package_prefix('px4_autonomous')
+    share_dir = get_package_share_directory('px4_autonomous')
     px4_build_dir = os.path.expanduser('~/PX4-Autopilot/build/px4_sitl_default')
     px4_gazebo_classic_dir = os.path.expanduser('~/PX4-Autopilot/Tools/simulation/gazebo-classic/sitl_gazebo-classic')
     gazebo_ros_share = get_package_share_directory('gazebo_ros')
     
-    vehicle_model = 'typhoon_h480_thi'
+    vehicle_model = 'typhoon_h480'
     world = 'thi'
     
     model_path = AppendEnvironmentVariable(
@@ -27,6 +29,16 @@ def generate_launch_description():
         'LD_LIBRARY_PATH',
         os.path.join(px4_build_dir, 'build_gazebo-classic')
     )
+
+    px4_autonomous_model_path = AppendEnvironmentVariable(
+        'GAZEBO_MODEL_PATH',
+        os.path.join(share_dir, 'models')
+    )
+
+    px4_autonomous_plugin_path = AppendEnvironmentVariable(
+        'GAZEBO_PLUGIN_PATH',
+        os.path.join(install_dir, 'lib', 'px4_autonomous')
+    )
     
     gzserver = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -34,7 +46,7 @@ def generate_launch_description():
         ),
         launch_arguments={
             'verbose': 'true',
-            'world': os.path.join(px4_gazebo_classic_dir, 'worlds', world + '.world')
+            'world': os.path.join(share_dir, 'worlds', world + '.world')
         }.items()
     )
 
@@ -60,13 +72,15 @@ def generate_launch_description():
         model_path,
         plugin_path,
         ld_path,
+        px4_autonomous_model_path,
+        px4_autonomous_plugin_path,
         gzserver,
         gzclient,
         xrce_dds_agent,
         Node(
             package='rviz2',
             executable='rviz2',
-            arguments=['-d', os.path.join(get_package_share_directory('px4_autonomous'), 'config/visualization.rviz')]
+            arguments=['-d', os.path.join(share_dir, 'config/visualization.rviz')]
         ),
         Node(
             package='tf2_ros',
@@ -74,15 +88,15 @@ def generate_launch_description():
             arguments=["0", "0", "0", "0.7071068", "0.7071068", "0", "0", "px4", "gazebo"]
         )
     ]
-    initial_coords = [(0.5, 0.5, 1)] # (x, y, z)
-    n = 1
+    initial_coords = [(0.5, 0.5, 1)]#, (-0.5, 0.5, 1), (-1.5, 0.5, 1)] # (x, y, z)
+    n = len(initial_coords)
     for k in range(1, n + 1):
         gen_sdf = ExecuteProcess(
             cmd=[
                 'python3',
                 os.path.join(px4_gazebo_classic_dir, 'scripts/jinja_gen.py'),
-                os.path.join(px4_gazebo_classic_dir, 'models', vehicle_model, vehicle_model + '.sdf.jinja'),
-                px4_gazebo_classic_dir,
+                os.path.join(share_dir, 'models', vehicle_model + '_thi', vehicle_model + '_thi.sdf.jinja'),
+                share_dir,
                 '--mavlink_tcp_port',
                 str(4560 + k),
                 '--mavlink_udp_port',

@@ -1,5 +1,5 @@
-float32 initial_state[4]
-float32 final_state[4]
+float32[4] initial_state
+float32[4] final_state
 ---
 float32 best_reward
 ---
