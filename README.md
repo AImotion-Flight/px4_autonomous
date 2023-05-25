@@ -9,6 +9,7 @@ It is assumed that the PX4 Code is cloned to ```~/```.
 Additionally install the necessary dependencies:
 ```bash
 sudo apt install ros-foxy-gazebo-ros-pkgs libgazebo-dev
+sudo snap install micro-xrce-dds-agent --edge
 ```
 Build the PX4 Autopilot for SITL Gazebo-Classic:
 ```bash
