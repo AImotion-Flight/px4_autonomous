@@ -4,7 +4,8 @@ from launch_ros.actions import Node
 def generate_launch_description():
     launch_entities = []
 
-    initial_args = [(0.5, 0.5, 1, 5)]#, (-0.5, 0.5, 1, 3), (-1.5, 0.5, 1, 2)] # (x, y, z, partner_id)
+    # For multiple UAVs add tuples of the form (x, y, z, partner_id) to this array
+    initial_args = [(0.5, 0.5, 1, 5)]#, (-0.5, 0.5, 1, 3), (-1.5, 0.5, 1, 2)]
     n = len(initial_args)
     for k in range(1, n + 1):
         x = initial_args[k - 1][0]

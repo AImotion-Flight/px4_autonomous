@@ -88,7 +88,9 @@ def generate_launch_description():
             arguments=["0", "0", "0", "0.7071068", "0.7071068", "0", "0", "px4", "gazebo"]
         )
     ]
-    initial_coords = [(0.5, 0.5, 1)]#, (-0.5, 0.5, 1), (-1.5, 0.5, 1)] # (x, y, z)
+
+    # For multiple UAVs add tuples of the form (x, y, z) to this array
+    initial_coords = [(0.5, 0.5, 1)]#, (-0.5, 0.5, 1), (-1.5, 0.5, 1)]
     n = len(initial_coords)
     for k in range(1, n + 1):
         gen_sdf = ExecuteProcess(
