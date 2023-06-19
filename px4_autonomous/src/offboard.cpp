@@ -117,7 +117,7 @@ public:
           auto feedback = std::make_shared<px4_autonomous_interfaces::action::ExecuteTrajectory::Feedback>();
           auto result = std::make_shared<px4_autonomous_interfaces::action::ExecuteTrajectory::Result>();
 
-          rclcpp::Rate loop_rate(0.75);
+          rclcpp::Rate loop_rate(1.0);
           unsigned int size = goal->trajectory.setpoints.size();
           for (unsigned int i = 0; i < size && rclcpp::ok(); ++i) {
             this->set_position_setpoint(goal->trajectory.setpoints[i].position[0] + 0.5, goal->trajectory.setpoints[i].position[1] + 0.5, goal->trajectory.setpoints[i].position[2] + 0.5, M_PI / 2);
@@ -130,12 +130,17 @@ public:
             result->final_reached = true;
             goal_handle->succeed(result);
             RCLCPP_INFO(this->get_logger(), "Trajectory executed");
+            this->executing_trajectory = false;
           }
         }, goal_handle}.detach();
         }
       );
 
     this->control_timer = this->create_wall_timer(std::chrono::milliseconds(this->setpoint_rate), [this]() {
+      if (this->executing_trajectory == true) {
+        return;
+      }
+
       float x = 0.5;
       float y = 0.5;
       float z = 1.5;
@@ -143,15 +148,11 @@ public:
       if (this->uav_id == 2) {
         x = (this->leader_pos[0] - this->d_safe) + (this->partner_pos[0] - this->pos[0] + this->d_safe);
         y = (this->leader_pos[1] - this->d_safe) + (this->partner_pos[1] - this->pos[1] + this->d_safe);
-        z = (this->leader_pos[2] - this->d_safe) + (this->partner_pos[2] - this->pos[2] + this->d_safe);
+        z = (this->leader_pos[2]);
       } else if (this->uav_id == 3) {
         x = (this->leader_pos[0] - this->d_safe) + (this->partner_pos[0] - this->pos[0] - this->d_safe);
         y = (this->leader_pos[1] - this->d_safe) + (this->partner_pos[1] - this->pos[1] - this->d_safe);
-        z = (this->leader_pos[2] - this->d_safe) + (this->partner_pos[2] - this->pos[2] - this->d_safe);
-      }
-
-      if (this->executing_trajectory) {
-        return;
+        z = (this->leader_pos[2]);
       }
 
       float yaw = M_PI / 2;

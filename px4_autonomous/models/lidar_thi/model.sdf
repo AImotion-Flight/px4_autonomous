@@ -42,7 +42,7 @@
             <resolution>0.02</resolution>
           </range>
         </ray>
-        <visualize>true</visualize>
+        <visualize>false</visualize>
         <update_rate>30</update_rate>
       </sensor>
     </link>
